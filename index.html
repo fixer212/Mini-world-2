@@ -764,7 +764,7 @@ border-left-color: #6b6;
 <option value="triggers">⚡ Триггеры</option>
 <option value="scripts">📝 Скрипты</option>
 </select>
-<button class="btn" id="newPostBtn">➕ Новый пост</button>
+<button class="btn" id="newPostBtn">➕ Новый п��ст</button>
 <div id="adminPostList"></div>
 </div>
 </div>
@@ -790,7 +790,7 @@ border-left-color: #6b6;
 </div>
 </div>
 
-<input type="file" id="postImage" accept="image/*">
+<input type="text" id="postImage" placeholder="Ссылка на изображение (URL)">
 <div id="imagePreview"></div>
 <div class="btn-group">
 <button class="btn" id="savePostBtn">💾 Сохранить</button>
@@ -858,11 +858,12 @@ border-left-color: #6b6;
 
 <script>
 (function() {
-// Appwrite конфигурация
+// Appwrite конфигурация с API KEY
 const client = new Appwrite.Client();
 client
   .setEndpoint('https://cloud.appwrite.io/v1')
-  .setProject('69a1e6ea000bf85fe85e');
+  .setProject('69a1e6ea000bf85fe85e')
+  .setKey('standard_4cdc0d6f6638cc9472a825129b32300054783d9b6f066e0d8016b969dab855ee2478d685b216afd24efe21af9d7d38a4b33b9d8d574b854532a6c6808e223a6443521f3b7338460d55ffa7d8653c51cc9fb72babf8e6d7e88de332bb41d4ba29897508bd2c3ef0abc67c074174ee67bb83bb57a0b390754dcfa3eb94c35e6893');
 
 const database = new Appwrite.Databases(client);
 const DB_ID = '69a1e85e001ee6e697e0';
@@ -879,47 +880,53 @@ let allPosts = [];
 
 async function loadPostsFromAppwrite() {
 try {
-console.log('Загрузка постов...');
+console.log('🔄 Загрузка постов с Appwrite...');
 const response = await database.listDocuments(DB_ID, COLLECTION_ID);
-allPosts = response.documents;
-console.log('Посты загружены:', allPosts);
+console.log('✅ Посты получены:', response.documents);
+allPosts = response.documents || [];
 return allPosts;
 } catch (error) {
-console.error('Ошибка при загрузке постов:', error);
-showError('errorMessage', 'Ошибка при загрузке данных с сервера');
+console.error('❌ Ошибка загрузки:', error);
+showError('errorMessage', 'Ошибка загрузки: ' + error.message);
 return [];
 }
 }
 
 async function createPost(data) {
 try {
+console.log('📝 Создание поста:', data);
 const doc = await database.createDocument(DB_ID, COLLECTION_ID, 'unique()', data);
+console.log('✅ Пост создан:', doc);
 return doc;
 } catch (error) {
-console.error('Ошибка при создании поста:', error);
-showError('editErrorMessage', 'Ошибка при сохранении поста: ' + error.message);
+console.error('❌ Ошибка создания:', error);
+showError('editErrorMessage', 'Ошибка при сохранении: ' + error.message);
 throw error;
 }
 }
 
 async function updatePost(docId, data) {
 try {
+console.log('✏️ Обновление поста:', docId);
 const doc = await database.updateDocument(DB_ID, COLLECTION_ID, docId, data);
+console.log('✅ Пост обновлён:', doc);
 return doc;
 } catch (error) {
-console.error('Ошибка при обновлении поста:', error);
-showError('editErrorMessage', 'Ошибка при сохранении поста: ' + error.message);
+console.error('❌ Ошибка обновления:', error);
+showError('editErrorMessage', 'Ошибка при сохранении: ' + error.message);
 throw error;
 }
 }
 
 async function deletePost(docId) {
 try {
+console.log('🗑️ Удаление поста:', docId);
 await database.deleteDocument(DB_ID, COLLECTION_ID, docId);
+console.log('✅ Пост удалён');
 return true;
 } catch (error) {
-console.error('Ошибка при удалении поста:', error);
-showError('adminErrorMessage', 'Ошибка при удалении поста: ' + error.message);
+console.error('❌ Ошибка удаления:', error);
+showError('adminErrorMessage', 'Ошибка удаления: ' + error.message);
 throw error;
 }
 }
@@ -938,7 +945,7 @@ function showSuccess(message) {
 alert(message);
 }
 
-// --- Элементы ---
+// --- Элементы DOM ---
 const body = document.body;
 const pages = document.querySelectorAll('.page');
 const navBtns = document.querySelectorAll('.nav-btn');
@@ -1152,7 +1159,7 @@ html += `<p style="color: #999; font-style: italic;">[Текст поста не
 }
 
 if (post.image) {
-html += `<img src="${escapeHtml(post.image)}" class="post-image" alt="Изображение">`;
+html += `<img src="${escapeHtml(post.image)}" class="post-image" alt="Изображение" onerror="this.style.display='none'">`;
 }
 
 if (post.code && post.code.trim()) {
@@ -1206,7 +1213,7 @@ aiEnabled.addEventListener('change', updateScriptFields);
 adminLock.addEventListener('click', () => {
 if (localStorage.getItem('adminRemember') === 'true') {
 showPage('adminPage');
-renderAdminPostList();
+loadPostsFromAppwrite().then(() => renderAdminPostList());
 } else {
 passwordModal.style.display = 'flex';
 }
@@ -1217,13 +1224,14 @@ passwordModal.style.display = 'none';
 passwordInput.value = '';
 });
 
-submitPassword.addEventListener('click', () => {
+submitPassword.addEventListener('click', async () => {
 if (passwordInput.value === 'damoix001') {
 if (rememberMe.checked) {
 localStorage.setItem('adminRemember', 'true');
 }
 passwordModal.style.display = 'none';
 passwordInput.value = '';
+await loadPostsFromAppwrite();
 showPage('adminPage');
 renderAdminPostList();
 } else {
@@ -1302,6 +1310,7 @@ postText.value = '';
 postCode.value = '';
 aiEnabled.checked = false;
 aiExplanation.value = '';
+postImage.value = '';
 imagePreview.innerHTML = '';
 deletePostBtn.style.display = 'none';
 
@@ -1327,7 +1336,8 @@ postText.value = post.text || '';
 postCode.value = post.code || '';
 aiEnabled.checked = !!post.test2;
 aiExplanation.value = post.test2 || '';
-imagePreview.innerHTML = post.image ? `<img src="${escapeHtml(post.image)}" style="max-width:100%; border-radius:12px; margin-top:10px;">` : '';
+postImage.value = post.image || '';
+imagePreview.innerHTML = post.image ? `<img src="${escapeHtml(post.image)}" style="max-width:100%; border-radius:12px; margin-top:10px;" onerror="this.style.display='none'">` : '';
 deletePostBtn.style.display = 'inline-flex';
 
 const cat = post.test3;
@@ -1346,12 +1356,14 @@ showPage('adminEditPage');
 
 postImage.addEventListener('change', function(e) {
 const file = e.target.files[0];
-if (file) {
+if (file && file.size < 5000000) {
 const reader = new FileReader();
 reader.onload = function(ev) {
 imagePreview.innerHTML = `<img src="${ev.target.result}" style="max-width:100%; border-radius:12px; margin-top:10px;">`;
 };
 reader.readAsDataURL(file);
+} else if (file) {
+showError('editErrorMessage', 'Файл слишком большой! Максимум 5MB');
 }
 });
 
@@ -1360,7 +1372,7 @@ const cat = adminCategory.value;
 const title = postTitle.value.trim();
 const text = postText.value.trim();
 const code = postCode.value.trim();
-const image = imagePreview.querySelector('img') ? imagePreview.querySelector('img').src : '';
+const image = postImage.value.trim() || (imagePreview.querySelector('img') ? imagePreview.querySelector('img').src : '');
 
 const aiEnabledValue = aiEnabled.checked;
 const aiExplanationValue = aiExplanation.value.trim();
@@ -1384,7 +1396,7 @@ const postData = {
 title,
 text,
 code: cat === 'scripts' ? code : '',
-image,
+image: image,
 test2: cat === 'scripts' && aiEnabledValue ? aiExplanationValue : '',
 test3: cat
 };
