@@ -879,8 +879,10 @@ let allPosts = [];
 
 async function loadPostsFromAppwrite() {
 try {
+console.log('Загрузка постов...');
 const response = await database.listDocuments(DB_ID, COLLECTION_ID);
 allPosts = response.documents;
+console.log('Посты загружены:', allPosts);
 return allPosts;
 } catch (error) {
 console.error('Ошибка при загрузке постов:', error);
@@ -1003,21 +1005,30 @@ category.toLowerCase() === currentCategory &&
 );
 });
 
-filtered = filtered.map((post) => ({
-...post,
-timestamp: post.$createdAt ? new Date(post.$createdAt).getTime() : Date.now()
-}));
+filtered = filtered.map((post) => {
+let timestamp = Date.now();
+if (post.$createdAt) {
+  timestamp = new Date(post.$createdAt).getTime();
+} else if (post.createdAt) {
+  timestamp = new Date(post.createdAt).getTime();
+}
+
+return {
+  ...post,
+  timestamp: timestamp
+};
+});
 
 switch(currentSort) {
 case 'oldest':
-filtered.sort((a, b) => a.timestamp - b.timestamp);
-break;
+  filtered.sort((a, b) => a.timestamp - b.timestamp);
+  break;
 case 'title':
-filtered.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-break;
+  filtered.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+  break;
 case 'newest':
 default:
-filtered.sort((a, b) => b.timestamp - a.timestamp);
+  filtered.sort((a, b) => b.timestamp - a.timestamp);
 }
 
 return filtered;
@@ -1095,12 +1106,19 @@ return;
 filteredPosts.forEach((post) => {
 const div = document.createElement('div');
 div.className = 'post-item';
-const postDate = new Date(post.$createdAt || Date.now());
-const dateStr = postDate.toLocaleDateString('ru-RU');
+
+let dateStr = 'Нет даты';
+if (post.$createdAt) {
+  const postDate = new Date(post.$createdAt);
+  dateStr = postDate.toLocaleDateString('ru-RU');
+} else if (post.createdAt) {
+  const postDate = new Date(post.createdAt);
+  dateStr = postDate.toLocaleDateString('ru-RU');
+}
 
 let excerpt = post.text || '';
 if (excerpt.length > 70) {
-excerpt = excerpt.substring(0, 70) + '...';
+  excerpt = excerpt.substring(0, 70) + '...';
 }
 
 div.innerHTML = `
@@ -1110,9 +1128,9 @@ div.innerHTML = `
 `;
 
 div.addEventListener('click', () => {
-currentPostId = post.$id;
-renderPost();
-showPage('postPage');
+  currentPostId = post.$id;
+  renderPost();
+  showPage('postPage');
 });
 
 postListDiv.appendChild(div);
@@ -1145,9 +1163,9 @@ html += `<pre class="code-block">${escapeHtml(post.code)}</pre>`;
 if (post.test2) {
 const aiText = (post.test2 || '').trim();
 if (aiText) {
-html += `<div class="ai-explanation">`;
-html += `<div class="ai-message">${escapeHtml(aiText).replace(/\n/g, '<br>')}</div>`;
-html += `</div>`;
+  html += `<div class="ai-explanation">`;
+  html += `<div class="ai-message">${escapeHtml(aiText).replace(/\n/g, '<br>')}</div>`;
+  html += `</div>`;
 }
 }
 
